@@ -6,12 +6,7 @@
 > * **[ES]** Documento maestro en español (este archivo): [Data-architecture.md](./Data-architecture.md)
 > * **[EN]** English mirror edition: [README.md](./README.md)
 
-| Formato | Español (ES) | English (EN) |
-| :--- | :--- | :--- |
-| **Microsoft Word (`.docx`)** | [Financial-BigData-Polars-and-Contracts-ES.docx](./dist/Financial-BigData-Polars-and-Contracts-ES.docx) | [Financial-BigData-Polars-and-Contracts-EN.docx](./dist/Financial-BigData-Polars-and-Contracts-EN.docx) |
-| **Texto plano (`.txt`)** | [Financial-BigData-Polars-and-Contracts-ES.txt](./dist/Financial-BigData-Polars-and-Contracts-ES.txt) | [Financial-BigData-Polars-and-Contracts-EN.txt](./dist/Financial-BigData-Polars-and-Contracts-EN.txt) |
-
-`[WARN]` Los artefactos de `./dist/` se generan en la etapa de distribución del proyecto; los enlaces quedan reservados.
+> **[Whitepapers Ejecutivos Descargables]:** **[Whitepaper ES (.pdf)](./dist/Financial-BigData-Polars-and-Contracts-ES.pdf)** | **[Whitepaper EN (.pdf)](./dist/Financial-BigData-Polars-and-Contracts-EN.pdf)** | **[Plain Text ES (.txt)](./dist/Financial-BigData-Polars-and-Contracts-ES.txt)** | **[Plain Text EN (.txt)](./dist/Financial-BigData-Polars-and-Contracts-EN.txt)**
 
 **Autoría:** **Darwin Miguel Abarca Vargas** — *Senior Data & Analytics Engineer | Quantitative Economist*
 

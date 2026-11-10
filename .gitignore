@@ -24,6 +24,11 @@ hardware_audit_report.json
 *.tmp
 *.log
 
-# Explicitly track whitepaper deliverables in dist/
-!dist/*.docx
+# Local build and test harnesses (kept locally, excluded from public repo)
+scripts/
+tests/
+
+# Whitepaper distribution artifacts (track exclusively .pdf and .txt deliverables)
+dist/*
+!dist/*.pdf
 !dist/*.txt

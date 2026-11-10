@@ -6,12 +6,7 @@
 > * **[EN]** English mirror edition (this file): [README.md](./README.md)
 > * **[ES]** Spanish master document: [Data-architecture.md](./Data-architecture.md)
 
-| Format | Spanish (ES) | English (EN) |
-| :--- | :--- | :--- |
-| **Microsoft Word (`.docx`)** | [Financial-BigData-Polars-and-Contracts-ES.docx](./dist/Financial-BigData-Polars-and-Contracts-ES.docx) | [Financial-BigData-Polars-and-Contracts-EN.docx](./dist/Financial-BigData-Polars-and-Contracts-EN.docx) |
-| **Plain text (`.txt`)** | [Financial-BigData-Polars-and-Contracts-ES.txt](./dist/Financial-BigData-Polars-and-Contracts-ES.txt) | [Financial-BigData-Polars-and-Contracts-EN.txt](./dist/Financial-BigData-Polars-and-Contracts-EN.txt) |
-
-`[WARN]` The artifacts under `./dist/` are generated in the distribution stage of the project; the links are reserved.
+> **[Downloadable Executive Whitepapers]:** **[Whitepaper EN (.pdf)](./dist/Financial-BigData-Polars-and-Contracts-EN.pdf)** | **[Whitepaper ES (.pdf)](./dist/Financial-BigData-Polars-and-Contracts-ES.pdf)** | **[Plain Text EN (.txt)](./dist/Financial-BigData-Polars-and-Contracts-EN.txt)** | **[Plain Text ES (.txt)](./dist/Financial-BigData-Polars-and-Contracts-ES.txt)**
 
 `[OK]` This edition contains the complete 1:1 English mirror of all 10 Modules, aligned with the Spanish master document.
 
