@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing & linting caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local OS & IDE artifacts
+.DS_Store
+Thumbs.db
+.antigravity/
+hardware_audit_report.json
+.wslconfig*
+*.tmp
+*.log
+
+# Explicitly track whitepaper deliverables in dist/
+!dist/*.docx
+!dist/*.txt
