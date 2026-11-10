@@ -163,3 +163,14 @@ def test_dist_whitepapers_exist_and_non_empty():
             assert header == b"\xef\xbb\xbf", (
                 f"[CRITICAL] Artifact {fname} lacks required UTF-8 BOM signature"
             )
+
+def test_no_underscores_inside_latex_text_blocks():
+    """Verify absence of underscores inside LaTeX \\text{...} to prevent KaTeX/MathJax rendering errors."""
+    pattern = re.compile(r"\\text\{[^}]*_[^}]*\}")
+    for path, name in [(DATA_ARCH_MD, "Data-architecture.md"), (README_MD, "README.md")]:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        matches = pattern.findall(content)
+        assert not matches, (
+            f"[CRITICAL] Underscores detected inside \\text{{...}} in {name}: {matches[:10]}"
+        )

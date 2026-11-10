@@ -156,7 +156,7 @@ Where each term has a strict financial semantics:
 
 In the simplified canonical formulation used by most liquid-position reconciliation engines (where the unit price already incorporates the scale factor and the applicable accrual), the internal valuation of each position is expressed as:
 
-$$\text{NAV}_{i,t}^{\text{IBOR}} = \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX\_Rate}_{c_i \to b_p, t}^{\text{IBOR}}$$
+$$\text{NAV}_{i,t}^{\text{IBOR}} = \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX Rate}_{c_i \to b_p, t}^{\text{IBOR}}$$
 
 #### 1.3.2. Total Fund Net Asset Value Equation (Fund-Level NAV)
 
@@ -172,15 +172,15 @@ A valuation error in a single position $i$ that exceeds the regulatory threshold
 
 #### 1.3.3. The Master Equation of Accounting Discrepancy ($\Delta \text{Break}$)
 
-During the reconciliation cycle in `ASSET-PIPE`, the `Polars` engine joins the set of internal positions ($\text{IBOR}$) against the certified file submitted by the custodian bank ($\text{ABOR} / \text{Custodian}$) using the composite primary key $\mathcal{K}_i = (\text{Portfolio\_ID}, \text{ISIN}, \text{Valuation\_Date})$.
+During the reconciliation cycle in `ASSET-PIPE`, the `Polars` engine joins the set of internal positions ($\text{IBOR}$) against the certified file submitted by the custodian bank ($\text{ABOR} / \text{Custodian}$) using the composite primary key $\mathcal{K}_i = (\text{Portfolio ID}, \text{ISIN}, \text{Valuation Date})$.
 
 For each matched key, we define the **Absolute Net Asset Value Discrepancy ($\Delta \text{Break}_{i,t}$)** as:
 
-$$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX\_Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian\_Reported\_NAV}_{i,t}$$
+$$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian Reported NAV}_{i,t}$$
 
 In addition, we define the **Relative Discrepancy in Basis Points ($\delta_{\text{bps}, i, t}$)** with respect to the value reported by the custodian (where $1\text{ basis point [bps]} = 0.01\% = 10^{-4}$):
 
-$$\delta_{\text{bps}, i, t} = \frac{\left| \Delta \text{Break}_{i,t} \right|}{\max\left(\left| \text{Custodian\_Reported\_NAV}_{i,t} \right|, \epsilon\right)} \times 10,000$$
+$$\delta_{\text{bps}, i, t} = \frac{\left| \Delta \text{Break}_{i,t} \right|}{\max\left(\left| \text{Custodian Reported NAV}_{i,t} \right|, \epsilon\right)} \times 10,000$$
 
 Where $\epsilon = 10^{-9}$ is a numerical regularization constant to avoid divisions by zero in positions valued at zero by one of the parties.
 
@@ -313,7 +313,7 @@ Over the last decade, the industry has attempted to address this volumetric rang
 2. **The Serialization and Network Tax in `PySpark` (`Apache Spark` on the JVM):**
    * **Python $\leftrightarrow$ JVM Boundary Friction (`Py4J` / `Pickle`):** `Apache Spark` is written in Scala and runs inside the Java Virtual Machine (JVM). When a financial data pipeline invokes Python logic in `PySpark`, the data must be serialized from JVM memory, transmitted through a local network *socket* (`loopback IPC`) to Python worker processes (`python worker processes`), deserialized, processed, and serialized again back to the JVM.
    * **Garbage Collection Overhead (*JVM Garbage Collection Pauses*):** Managing millions of ephemeral objects on the JVM *Heap* introduces non-deterministic pauses (*Stop-the-World GC pauses*) and requires provisioning costly distributed clusters (`AWS EMR`, `Databricks`) to process data volumes that fit comfortably within the NVMe/RAM bandwidth of a single modern node when processed in native compiled code.
-   * **Shuffle Barriers in Accounting Joins (`IBOR` $\bowtie$ `ABOR`):** A bilateral `JOIN` on the composite key $(\text{Portfolio\_ID}, \text{ISIN}, \text{Valuation\_Date})$ in a Spark cluster forces *hash* partitioning, writing intermediate blocks to local disk, and transferring gigabytes over the network between nodes (*Network Shuffle*). In `Polars`, that same `JOIN` is executed through partitioned *hash* tables in shared memory with no network and no JVM, reducing latency from minutes to milliseconds.
+   * **Shuffle Barriers in Accounting Joins (`IBOR` $\bowtie$ `ABOR`):** A bilateral `JOIN` on the composite key $(\text{Portfolio ID}, \text{ISIN}, \text{Valuation Date})$ in a Spark cluster forces *hash* partitioning, writing intermediate blocks to local disk, and transferring gigabytes over the network between nodes (*Network Shuffle*). In `Polars`, that same `JOIN` is executed through partitioned *hash* tables in shared memory with no network and no JVM, reducing latency from minutes to milliseconds.
 
 ---
 
@@ -414,7 +414,7 @@ In `ASSET-PIPE`, the use of eager reading (`pl.read_parquet`) in reconciliation 
 
 1. **Projection Pruning (*Projection Pushdown*):** If a custodian bank's Parquet file contains $85$ columns (including lengthy legal descriptions, issuer postal addresses, and audit notes), but the NAV reconciliation equation requires only $7$ columns (`portfolio_id`, `isin`, `valuation_date`, `currency`, `units`, `price`, `fx_rate`, `custodian_reported_nav`), the optimizer rewrites the read plan to request, via HTTP `Range GET` from `AWS S3 / MinIO`, solely and exclusively the bytes corresponding to those $7$ *Column Chunks*. The immediate savings in network bandwidth and RAM exceed $90\%$.
 2. **Predicate Pruning (*Predicate Pushdown*):** If we filter on a specific valuation date or portfolio (`.filter(pl.col("portfolio_id") == "BLK-CREDIT-01")`), `Polars` evaluates the predicate against the `min_value` and `max_value` statistics stored in the footer (*Footer*) of each *Row Group* of the Parquet file. If a block of $100,000$ rows has the range `["FUND-A", "FUND-M"]` and does not contain `"BLK-CREDIT-01"`, the entire block is discarded without decompressing or reading it.
-3. **Expression Fusion and Common Subplan Elimination (*Common Subplan Elimination*):** Multiple derived calculations (such as the computation of $\text{IBOR\_NAV}$, the absolute difference $\Delta \text{Break}$, and the relative difference in basis points $\delta_{\text{bps}}$) are fused into a single pass over the processor registers (*Operator Fusion / Pipelining*), avoiding the materialization of intermediate temporary columns in RAM.
+3. **Expression Fusion and Common Subplan Elimination (*Common Subplan Elimination*):** Multiple derived calculations (such as the computation of $\text{IBOR NAV}$, the absolute difference $\Delta \text{Break}$, and the relative difference in basis points $\delta_{\text{bps}}$) are fused into a single pass over the processor registers (*Operator Fusion / Pipelining*), avoiding the materialization of intermediate temporary columns in RAM.
 
 ---
 
@@ -692,7 +692,7 @@ In the infrastructure layer of `ASSET-PIPE` (`src/infrastructure/s3_parquet_adap
 * **Hive-Style Partitioning:** Key organization convention in a Data Lake where the values of the most frequently filtered columns are encoded as `key=value/` prefixes in the object path (for example, `s3://asset-pipe/validated-parquet/valuation_date=2026-11-09/batch.parquet`), allowing the query engine to discard entire prefixes even before reading the *Footers* of the Parquet files.
 * **MinIO:** High-performance, container-native object storage server written in Go that implements the `Amazon S3 v4` API with 100% compatibility. In `ASSET-PIPE` it provides a local S3 Data Lake identical to production, accessible via API at `:9000` and via web console at `:9001`.
 * **PAX (*Partition Attributes Across*):** Physical on-disk storage design model in which a relational table is first split horizontally into epochs or row groups (*Row Groups*) and then vertically by attributes (*Column Chunks*) within each group, combining record locality with the efficiency of columnar reads.
-* **RLE (*Run-Length Encoding*) & Bit-Packing:** Pair of lossless encoding techniques used by `Apache Parquet`. *RLE* replaces sequences of consecutive identical values with the pair `(value, number_of_repetitions)`, whereas *Bit-Packing* stores small integers using exactly the minimum number of bits $\lceil \log_2(\text{max\_val}) \rceil$ instead of full words of $32$ or $64\text{ bits}$.
+* **RLE (*Run-Length Encoding*) & Bit-Packing:** Pair of lossless encoding techniques used by `Apache Parquet`. *RLE* replaces sequences of consecutive identical values with the pair `(value, number_of_repetitions)`, whereas *Bit-Packing* stores small integers using exactly the minimum number of bits $\lceil \log_2(\text{max val}) \rceil$ instead of full words of $32$ or $64\text{ bits}$.
 * **Row Group:** Horizontal partition of an `Apache Parquet` file (usually between $100,000$ and $1,000,000$ rows) that groups a complete set of *Column Chunks* and maintains its own `min/max` statistics to enable read pruning and multithreaded parallel execution.
 * **Small File Problem:** Severe performance degradation in Data Lakes that occurs when millions of records are written fragmented across thousands of files of a few kilobytes instead of being grouped into blocks of $64\text{ MB} - 256\text{ MB}$, causing the HTTP header negotiation latency (`TCP/TLS Handshake` and `LIST/GET` calls to S3) to exceed the actual data transfer time.
 * **Strong Read-After-Write Consistency:** Formal guarantee of the distributed storage system whereby, immediately after receiving the `HTTP 200 OK` confirmation of the write (`PUT`) or deletion (`DELETE`) of an object, any subsequent read (`GET` or `LIST`) from any process or node will deterministically observe the new state without propagation delays.
@@ -790,8 +790,8 @@ In standard Python and in the default configuration of many JSON/Parquet seriali
 $$\begin{aligned}
 \text{Units}_{i,t} &\in \mathbb{R} \setminus \{-\infty, +\infty, \text{NaN}\} && (\text{Allows long positions } > 0, \text{ short } < 0 \text{ and closed } = 0) \\
 \text{Price}_{i,t} &\in [0, +\infty) \subset \mathbb{R} && (\text{Finite non-negative price: } 0 \le P_{i,t} < +\infty) \\
-\text{FX\_Rate}_{c \to b, t} &\in (0, +\infty) \subset \mathbb{R} && (\text{Strictly positive finite exchange rate: } 0 < \text{FX}_{c \to b, t} < +\infty) \\
-\text{Custodian\_NAV}_{i,t} &\in \mathbb{R} \setminus \{-\infty, +\infty, \text{NaN}\} && (\text{Finite net asset value reported by the custodian})
+\text{FX Rate}_{c \to b, t} &\in (0, +\infty) \subset \mathbb{R} && (\text{Strictly positive finite exchange rate: } 0 < \text{FX}_{c \to b, t} < +\infty) \\
+\text{Custodian NAV}_{i,t} &\in \mathbb{R} \setminus \{-\infty, +\infty, \text{NaN}\} && (\text{Finite net asset value reported by the custodian})
 \end{aligned}$$
 
 ---
@@ -905,7 +905,7 @@ Formally, let $\Psi_{\text{row}}(r_i) \in \{0, 1\}$ be the individual validation
 
 1. **Composite Key Uniqueness Violation (*Duplicate Primary Key Replay*):** Due to a faulty retry in the custodian bank's exporter, the Apple Inc. position (`US0378331005`) for the fund `BLK-ALADDIN-01` on the date `2026-11-09` appears twice within the same file. Individually, both rows have a valid `ISIN`, a valid `USD` currency, and positive finite prices ($\Psi_{\text{row}}(r_k) = \Psi_{\text{row}}(r_j) = 1$). If this batch enters the reconciliation engine, a `JOIN` or an aggregation will artificially double the Net Asset Value ($\text{NAV}$) of that position by $+100\%$.
 2. **Partial Transmission Truncation (*Truncated SFTP/S3 Drop*):** An institutional fund routinely holds between $450$ and $500$ active positions each day, with a volume of Assets Under Management (**AUM**) of $\$1,200\text{ million}$. A network outage interrupts file generation at the source after writing row $80$, closing the file cleanly. The $80$ rows are syntactically perfect, but $84\%$ of the portfolio is missing.
-3. **Base-Currency FX Identity Invariant (*Base Currency FX Identity Violation*):** A row declares that the asset's local currency coincides with the fund's base currency ($c_i = b_p = \text{'USD'}$), and reports an exchange rate $\text{FX\_Rate} = 1.0850$ (which is a valid positive finite number for the individual validator, but mathematically impossible for the $\text{USD} \to \text{USD}$ pair, where the exchange rate must be identically $1.000000$).
+3. **Base-Currency FX Identity Invariant (*Base Currency FX Identity Violation*):** A row declares that the asset's local currency coincides with the fund's base currency ($c_i = b_p = \text{'USD'}$), and reports an exchange rate $\text{FX Rate} = 1.0850$ (which is a valid positive finite number for the individual validator, but mathematically impossible for the $\text{USD} \to \text{USD}$ pair, where the exchange rate must be identically $1.000000$).
 4. **Extreme Statistical Drift (*Distributional Drift & Fat-Finger Batch Errors*):** A scaling error at the price provider multiplies the entire fixed-income price column by $100$ (sending prices on a base of $10,000$ instead of a base of $100$). No price is negative or `NaN`, but the batch's median discrepancy jumps to $9,900\%$.
 
 To intercept these set-level anomalies before writing to `s3://asset-pipe/validated-parquet/`, **`ASSET-PIPE`** implements a **Second Declarative Customs Checkpoint for Batch Invariants** based on the **`Great Expectations` (*Expectation Suites*)** paradigm, executed natively and in vectorized fashion on the in-memory batch (`src/domain/invariants.py`).
@@ -918,15 +918,15 @@ In `ASSET-PIPE`, a batch $\mathcal{B}$ only receives the cryptographic certifica
 
 #### 5.2.1. Invariant $E_1$: Strict Uniqueness of the Composite Primary Key (`expect_compound_columns_to_be_unique`)
 
-We define the accounting identity tuple of each record $r_i \in \mathcal{B}$ as $k(r_i) = (\text{portfolio\_id}_i, \, \text{isin}_i, \, \text{valuation\_date}_i)$. The cardinality of the set of distinct keys must match exactly the total number of valid records in the batch (or the duplicate records must be isolated before aggregation):
+We define the accounting identity tuple of each record $r_i \in \mathcal{B}$ as $k(r_i) = (\text{portfolio id}_i, \, \text{isin}_i, \, \text{valuation date}_i)$. The cardinality of the set of distinct keys must match exactly the total number of valid records in the batch (or the duplicate records must be isolated before aggregation):
 
-$$E_1(\mathcal{B}) \iff \left| \left\{ (\text{portfolio\_id}_i, \, \text{isin}_i, \, \text{valuation\_date}_i) : r_i \in \mathcal{B} \right\} \right| == |\mathcal{B}|$$
+$$E_1(\mathcal{B}) \iff \left| \left\{ (\text{portfolio id}_i, \, \text{isin}_i, \, \text{valuation date}_i) : r_i \in \mathcal{B} \right\} \right| == |\mathcal{B}|$$
 
 Any collision $k(r_i) == k(r_j)$ for $i \neq j$ immediately triggers the rule `COMPOUND_KEY_DUPLICATE_DETECTED`.
 
 #### 5.2.2. Invariant $E_2$: Absolute Completeness of Canonical Columns (`expect_column_values_to_not_be_null`)
 
-For every attribute belonging to the mandatory accounting core $\mathcal{A}_{\text{core}} = \{\text{position\_id}, \text{portfolio\_id}, \text{isin}, \text{valuation\_date}, \text{currency}, \text{units}, \text{price}, \text{fx\_rate}, \text{custodian\_reported\_nav}\}$, the count of null bits in the `Apache Arrow` *Validity Bitmap* must be identically zero:
+For every attribute belonging to the mandatory accounting core $\mathcal{A}_{\text{core}} = \{\text{position id}, \text{portfolio id}, \text{isin}, \text{valuation date}, \text{currency}, \text{units}, \text{price}, \text{fx rate}, \text{custodian reported nav}\}$, the count of null bits in the `Apache Arrow` *Validity Bitmap* must be identically zero:
 
 $$E_2(\mathcal{B}) \iff \sum_{a \in \mathcal{A}_{\text{core}}} \text{NullCount}(\mathcal{B}, a) == 0$$
 
@@ -934,13 +934,13 @@ $$E_2(\mathcal{B}) \iff \sum_{a \in \mathcal{A}_{\text{core}}} \text{NullCount}(
 
 For every position $r_i \in \mathcal{B}$ whose local currency coincides with the consolidation base currency ($b_p = \text{'USD'}$ by default), the currency conversion factor cannot deviate from unity by more than the machine precision $\epsilon = 10^{-6}$:
 
-$$E_3(\mathcal{B}) \iff \forall r_i \in \mathcal{B}, \quad \left( \text{currency}_i == b_p \implies \left| \text{fx\_rate}_i - 1.0 \right| \le 10^{-6} \right)$$
+$$E_3(\mathcal{B}) \iff \forall r_i \in \mathcal{B}, \quad \left( \text{currency}_i == b_p \implies \left| \text{fx rate}_i - 1.0 \right| \le 10^{-6} \right)$$
 
 #### 5.2.4. Invariant $E_4$: Net Asset Value Accounting Conservation Equation (`expect_nav_accounting_equation_to_hold`)
 
 The core of declarative auditing in `ASSET-PIPE` is the Net Asset Value conservation expectation. For each position $r_i$, the engine evaluates in vectorized fashion the absolute discrepancy $\Delta \text{Break}_i$ and the relative discrepancy in basis points $\delta_{\text{bps}, i}$:
 
-$$\Delta \text{Break}_i = \left( \text{units}_i \times \text{price}_i \times \text{fx\_rate}_i \right) - \text{custodian\_reported\_nav}_i$$
+$$\Delta \text{Break}_i = \left( \text{units}_i \times \text{price}_i \times \text{fx rate}_i \right) - \text{custodian reported nav}_i$$
 
 This expectation classifies the batch into two levels of operational action:
 * **Position Level (`Position-Level Break Tagging`):** If $|\Delta \text{Break}_i| > \tau_{\text{abs}}$ (where the strict accounting threshold is $\tau_{\text{abs}} = \$0.01$ or $\delta_{\text{bps}, i} > 1.0\text{ bps}$), the position is **not blindly discarded** if its schema is valid, but is instead **explicitly tagged as `[NAV-BREAK]`** so that it appears highlighted in the interactive **`NAV & Schema Breaks`** card of the Financial Console (`:3000`) and is recorded in the Data Warehouse audit views (`:4213`).
@@ -950,7 +950,7 @@ This expectation classifies the batch into two levels of operational action:
 
 Every valid batch must satisfy the non-empty volume bound $|\mathcal{B}| \in [N_{\min}, N_{\max}]$ (with $N_{\min} \ge 1$) and verify that the aggregate Net Asset Value of the batch is a finite real number:
 
-$$E_5(\mathcal{B}) \iff |\mathcal{B}| \ge 1 \;\land\; \left| \sum_{i=1}^{|\mathcal{B}|} \text{custodian\_reported\_nav}_i \right| < +\infty$$
+$$E_5(\mathcal{B}) \iff |\mathcal{B}| \ge 1 \;\land\; \left| \sum_{i=1}^{|\mathcal{B}|} \text{custodian reported nav}_i \right| < +\infty$$
 
 ---
 
@@ -1053,7 +1053,7 @@ Each time the circuit breaker diverts records to `s3://asset-pipe/quarantine/`, 
 The design of the `s3://asset-pipe/quarantine/` bucket is not a passive data graveyard, but an active recovery queue (*Dead-Letter Replay Queue*). As will be documented operationally in our Runbook `docs/runbooks/02-s3-quarantine-schema-drift-recovery.md`:
 1. The data engineering or custody operations team inspects the isolated rows directly from the **`NAV & Schema Breaks`** card of the Executive Console (`:3000`) or by downloading the manifest from the `AWS S3 / MinIO (:9001)` web console.
 2. Once the error has been corrected at the source by the custodian (for example, by replacing the erroneous `ISIN` code or rectifying the `NaN` price), the repaired batch is deposited again into `landing/`.
-3. Thanks to the composite-key idempotency $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$ of the persistence engine in `DuckDB / Snowflake`, the re-ingestion cleanly updates the pending positions without duplicating the $99,985$ positions that had already been successfully reconciled in the first cycle.
+3. Thanks to the composite-key idempotency $(\text{portfolio id}, \text{isin}, \text{valuation date})$ of the persistence engine in `DuckDB / Snowflake`, the re-ingestion cleanly updates the pending positions without duplicating the $99,985$ positions that had already been successfully reconciled in the first cycle.
 
 ---
 
@@ -1076,7 +1076,7 @@ The design of the `s3://asset-pipe/quarantine/` bucket is not a passive data gra
 * **AUM (*Assets Under Management*):** Total market value of all the financial investments that a management entity administers on behalf of its clients and institutional investors. In batch validation, the aggregate sum of `custodian_reported_nav` acts as a daily AUM control sum (*checksum*).
 * **Atomic Batch Bifurcation:** Data engineering pattern in which a heterogeneous input stream $\mathcal{B}$ is partitioned in a single logical pass, by means of a boolean validation mask $M \in \{0, 1\}^N$, into two disjoint subsets ($\mathcal{B}_{\text{valid}} \cap \mathcal{B}_{\text{quarantine}} = \emptyset$ and $\mathcal{B}_{\text{valid}} \cup \mathcal{B}_{\text{quarantine}} = \mathcal{B}$), guaranteeing that not a single record is lost or duplicated in transit.
 * **Circuit Breaker Pattern:** Automatic protection mechanism inspired by electrical engineering that monitors the failure rate of a data flow and, when the proportion of corrupt records exceeds a critical safety threshold ($\Theta_{\text{abort}}$), interrupts propagation to downstream systems to prevent cascading failures.
-* **Compound Primary Key:** Unique identifier of a relational entity formed by the ordered combination of two or more domain attributes. In portfolio accounting reconciliation, the canonical primary key consists of the triple $(\text{portfolio\_id}, \, \text{isin}, \, \text{valuation\_date})$.
+* **Compound Primary Key:** Unique identifier of a relational entity formed by the ordered combination of two or more domain attributes. In portfolio accounting reconciliation, the canonical primary key consists of the triple $(\text{portfolio id}, \, \text{isin}, \, \text{valuation date})$.
 * **Data Quality Shift-Left:** Architectural principle that requires moving all validation, typing, and accounting audit rules as close as possible to the point of origin or ingestion (before transforming or loading into the Data Warehouse), drastically reducing remediation cost and cloud compute consumption.
 * **Expectation & Expectation Suite:** In the `Great Expectations` architecture, an *Expectation* is a declarative, machine-verifiable assertion, expressed in domain language, about a property of the data (for example, `expect_column_values_to_not_be_null`). An *Expectation Suite* is the complete contract that groups all the assertions that certify the quality of a dataset.
 * **Forensic Manifest (`.manifest.json`):** Immutable metadata artifact automatically generated alongside each file deposited in the quarantine zone (`s3://asset-pipe/quarantine/`). It contains the `SHA-256` cryptographic fingerprint of the original batch, the volumetric rejection metrics, and the exact breakdown of the business rules violated, for regulatory audit.
@@ -1091,7 +1091,7 @@ Once data batches have cleared the dual origin validation checkpoints (`Pydantic
 
 From the perspective of relational set theory, let $\mathcal{L}_{\text{IBOR}}$ be the set of positions in the Internal Investment Book of Records and $\mathcal{L}_{\text{ABOR}}$ be the set of positions reported by the Custodian Accounting Book of Records for a valuation cutoff date $t$. We define the composite primary matching key for every record as:
 
-$$\mathcal{K}_i = (\text{portfolio\_id}_i, \, \text{isin}_i, \, \text{valuation\_date}_i)$$
+$$\mathcal{K}_i = (\text{portfolio id}_i, \, \text{isin}_i, \, \text{valuation date}_i)$$
 
 A common mistake in rudimentary financial pipelines is joining both books using an `INNER JOIN` ($\mathcal{L}_{\text{IBOR}} \bowtie_{\text{inner}} \mathcal{L}_{\text{ABOR}}$). In banking accounting, an `INNER JOIN` represents a critical design flaw: if the asset manager executed a $\$50,000,000$ purchase of U.S. Treasury bonds at the market close ($\mathcal{K}_i \in \mathcal{L}_{\text{IBOR}}$) but the SWIFT MT541 settlement instruction failed to reach the custodian bank ($\mathcal{K}_i \notin \mathcal{L}_{\text{ABOR}}$), an `INNER JOIN` silently discards that record for lack of a counterpart, concealing a $\$50\text{ million}$ asset hole.
 
@@ -1102,7 +1102,7 @@ $$\mathcal{U}_t = \mathcal{L}_{\text{IBOR}} \;\bowtie_{\mathcal{K}}\; \mathcal{L
 #### Physical Execution of the Join in `Polars` (*Partitioned Parallel Hash Join*)
 
 When `Polars` executes this join across millions of positions, it avoids any expensive global sorting $O(N \log N)$ and deploys a two-phase **Parallel Partitioned Hash Join** algorithm inside Rust:
-1. **Radix Hash Partitioning Phase (`xxHash64`):** Both streams (`IBOR` and `ABOR`) are vectorized-hashed on the tuple $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$ using the upper bits of the hash to distribute rows across $P = 2^k$ independent buckets (*Radix Partitions*, where $P$ is proportional to the number of physical CPU cores).
+1. **Radix Hash Partitioning Phase (`xxHash64`):** Both streams (`IBOR` and `ABOR`) are vectorized-hashed on the tuple $(\text{portfolio id}, \text{isin}, \text{valuation date})$ using the upper bits of the hash to distribute rows across $P = 2^k$ independent buckets (*Radix Partitions*, where $P$ is proportional to the number of physical CPU cores).
 2. **Lock-Free Build & Probe Phase:** Because two identical keys fall with mathematical certainty into the same partition $p \in \{0, \dots, P-1\}$, `Rayon` worker threads build and probe hash tables for each partition in parallel without requiring a single mutual exclusion lock (*Mutex*) across cores, achieving strict linear time complexity $\mathcal{O}(|\mathcal{L}_{\text{IBOR}}| + |\mathcal{L}_{\text{ABOR}}|)$.
 
 ---
@@ -1118,17 +1118,17 @@ We define contiguous columnar vectors in `Apache Arrow` memory ($\mathbf{U}, \ma
 The `Polars` engine compiles the three fundamental equations into a single Fused Kernel:
 
 1. **Calculated Net Asset Value Vector ($\mathbf{N}_{\text{calc}}$):**
-   $$\mathbf{N}_{\text{calc}} = \mathbf{U} \odot \mathbf{P} \odot \mathbf{F} \quad \Longleftrightarrow \quad \text{calculated\_nav}_i = \text{units}_i \times \text{price}_i \times \text{fx\_rate}_i$$
+   $$\mathbf{N}_{\text{calc}} = \mathbf{U} \odot \mathbf{P} \odot \mathbf{F} \quad \Longleftrightarrow \quad \text{calculated nav}_i = \text{units}_i \times \text{price}_i \times \text{fx rate}_i$$
    *(where $\odot$ denotes the element-wise Hadamard product executed in hardware `AVX2`/`AVX-512` vector registers)*.
 
 2. **Signed Monetary Discrepancy Vector ($\boldsymbol{\Delta}_{\text{break}}$) and Absolute Magnitude ($|\boldsymbol{\Delta}_{\text{break}}|$):**
-   $$\Delta \text{Break}_i = \text{calculated\_nav}_i - \text{custodian\_reported\_nav}_i$$
+   $$\Delta \text{Break}_i = \text{calculated nav}_i - \text{custodian reported nav}_i$$
    * **Accounting interpretation of the sign:**
      * If $\Delta \text{Break}_i > 0$: The internal book (**IBOR**) overvalues the position relative to the custodian bank (**ABOR**).
      * If $\Delta \text{Break}_i < 0$: The internal book (**IBOR**) undervalues the position relative to the custodian bank (**ABOR**).
 
 3. **Relative Severity Vector in Basis Points ($\boldsymbol{\delta}_{\text{bps}}$):**
-   $$\delta_{\text{bps}, i} = \frac{\left| \Delta \text{Break}_i \right|}{\max\left( \left| \text{custodian\_reported\_nav}_i \right|, \, \left| \text{calculated\_nav}_i \right|, \, \epsilon \right)} \times 10,000 \quad (\text{with } \epsilon = 10^{-9})$$
+   $$\delta_{\text{bps}, i} = \frac{\left| \Delta \text{Break}_i \right|}{\max\left( \left| \text{custodian reported nav}_i \right|, \, \left| \text{calculated nav}_i \right|, \, \epsilon \right)} \times 10,000 \quad (\text{with } \epsilon = 10^{-9})$$
 
 ---
 
@@ -1153,7 +1153,7 @@ $$\Delta \text{Break}_i \equiv E_{Q,i} + E_{P,i} + E_{FX,i} + E_{\text{cross},i}
 
 This factorial attribution enables the `ASSET-PIPE` decision tree to automatically classify the primary root cause of the mismatch according to whichever component accounts for the greatest fraction of total variance:
 
-$$\text{Primary\_Driver}_i = \arg\max_{k \in \{Q, P, FX\}} \left| E_{k, i} \right|$$
+$$\text{Primary Driver}_i = \arg\max_{k \in \{Q, P, FX\}} \left| E_{k, i} \right|$$
 
 ---
 
@@ -1217,9 +1217,9 @@ A design consideration distinguishing a senior quantitative architect is the rig
 In addition to producing the granular table of reconciled positions, the `Polars` engine computes the **Portfolio NAV Summary Rollup** in a single aggregated expression:
 
 $$\begin{aligned}
-\text{AUM}_{\text{IBOR}, p} &= \sum_{i \in \mathcal{I}_p} \text{calculated\_nav}_i, \qquad \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \text{custodian\_reported\_nav}_i \\
-\text{Net\_Fund\_Break}_p &= \text{AUM}_{\text{IBOR}, p} - \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \Delta \text{Break}_i \\
-\text{Gross\_Fund\_Break}_p &= \sum_{i \in \mathcal{I}_p} \left| \Delta \text{Break}_i \right|
+\text{AUM}_{\text{IBOR}, p} &= \sum_{i \in \mathcal{I}_p} \text{calculated nav}_i, \qquad \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \text{custodian reported nav}_i \\
+\text{Net Fund Break}_p &= \text{AUM}_{\text{IBOR}, p} - \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \Delta \text{Break}_i \\
+\text{Gross Fund Break}_p &= \sum_{i \in \mathcal{I}_p} \left| \Delta \text{Break}_i \right|
 \end{aligned}$$
 
 * **Why Distinguishing between `Net_Fund_Break` and `Gross_Fund_Break` is Vital:**
@@ -1293,7 +1293,7 @@ flowchart TB
 
 #### Guarantees of the `WarehousePort` Contract:
 1. **Columnar In-Memory Ingestion (`Apache Arrow` / `Polars DataFrame`):** The `upsert_reconciled_positions` method receives neither Python dictionary lists nor row-by-row `INSERT INTO ... VALUES (...)` statements. It accepts an in-memory `Apache Arrow` columnar record batch or table generated directly by `Polars`.
-2. **Transactional Idempotency (`MERGE` / `INSERT OR REPLACE`):** If a batch sharing the composite key $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$ is reprocessed following quarantine remediation, the adapter executes an atomic `UPSERT` operation that updates position status without generating duplicate rows or inflating aggregated NAV.
+2. **Transactional Idempotency (`MERGE` / `INSERT OR REPLACE`):** If a batch sharing the composite key $(\text{portfolio id}, \text{isin}, \text{valuation date})$ is reprocessed following quarantine remediation, the adapter executes an atomic `UPSERT` operation that updates position status without generating duplicate rows or inflating aggregated NAV.
 3. **Deterministic Reset to Zero Baseline (`reset_warehouse_to_zero`):** Provides atomic, transactional table clearing (`TRUNCATE TABLE`) across analytical relations when an operator clicks `Reset to 0` in the Executive Console (`:3000`), guaranteeing rigorous compliance with the *Honest Zero Baseline* standard (`$0.00`).
 
 ---
@@ -1516,7 +1516,7 @@ Traditional passwords are fundamentally vulnerable to brute-force attacks, crede
 2. The standard public exponent $e = 65,537$ is selected, and the private exponent is computed as $d \equiv e^{-1} \pmod{\lambda(n)}$.
 3. The **Public Key** $(n, e)$ is registered in `Snowflake` via `ALTER USER ASSET_PIPE_SVC_USER SET RSA_PUBLIC_KEY = 'MIIBIjANBgkqhki...'`, with a secondary slot `RSA_PUBLIC_KEY_2` reserved for **Zero-Downtime Key Rotation**.
 4. When the `SnowflakeAdapter` connects, it constructs an ephemeral *JSON Web Token* (**JWT**) containing the public key SHA-256 fingerprint, account identifier, and short expiration timestamp (`exp` $\le 60\text{ seconds}$), mathematically signing it with the **Private Key** $(n, d)$:
-   $$\sigma = \left( \text{SHA256}(\text{JWT\_Header.JWT\_Payload}) \right)^d \bmod n$$
+   $$\sigma = \left( \text{SHA256}(\text{JWT Header.JWT Payload}) \right)^d \bmod n$$
 5. `Snowflake` verifies the signature using the registered public key ($\sigma^e \bmod n$). The private key **never traverses the network**.
 
 #### 8.3.2. Least-Privilege Role-Based Access Control (*Least-Privilege RBAC*)
@@ -1754,7 +1754,7 @@ Across the preceding nine modules, we established the mathematical, algorithmic,
 #### Synthesis of Module 1: Institutional Reconciliation Domain and NAV Algebra
 * **Core Problem:** In institutional asset management (BlackRock Aladdin, Blackstone, Santander Securities Services), the internal Investment Book of Records (**IBOR**) and the Custodian Accounting Book of Records (**ABOR**) diverge daily during *T+0 / T+1* accounting cycles due to settlement lags, valuation pricing source hierarchies, and foreign exchange cutoffs.
 * **Invariant Reconciliation Equation:**
-  $$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX\_Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian\_Reported\_NAV}_{i,t}$$
+  $$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian Reported NAV}_{i,t}$$
 * **Architectural Guarantee:** `ASSET-PIPE` replaces proprietary closed-box platforms (Duco, AutoRek) with a 100% auditable GitOps pipeline that deterministically classifies every position according to monetary deviation ($|\Delta \text{Break}_{i,t}|$) and relative basis points ($\delta_{\text{bps}, i, t}$).
 
 #### Synthesis of Module 2: Vectorized Engines in Rust (`Polars` and `Apache Arrow`) versus `Pandas` and `PySpark`
@@ -1779,12 +1779,12 @@ Across the preceding nine modules, we established the mathematical, algorithmic,
 * **Core Problem:** Row-level validation cannot guarantee batch-level integrity (duplicate composite primary keys or cross-column inconsistencies such as `currency == 'USD'` with `fx_rate != 1.0`).
 * **Atomic Batch Bifurcation:**
   $$\mathcal{B} = \mathcal{B}_{\text{valid}} \sqcup \mathcal{B}_{\text{quarantine}} \quad \text{such that} \quad \mathcal{B}_{\text{valid}} \cap \mathcal{B}_{\text{quarantine}} = \emptyset$$
-* **Architectural Guarantee:** A declarative suite of expectations (`GX-01` to `GX-07`) verifies primary key uniqueness $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$, non-null completeness, and accounting equation invariants. Violating records never block healthy data: they are routed atomically to `s3://asset-pipe/quarantine/` with a cryptographic `SHA-256` forensic manifest (`.manifest.json`).
+* **Architectural Guarantee:** A declarative suite of expectations (`GX-01` to `GX-07`) verifies primary key uniqueness $(\text{portfolio id}, \text{isin}, \text{valuation date})$, non-null completeness, and accounting equation invariants. Violating records never block healthy data: they are routed atomically to `s3://asset-pipe/quarantine/` with a cryptographic `SHA-256` forensic manifest (`.manifest.json`).
 
 #### Synthesis of Module 6: Portfolio Accounting Reconciliation Algorithms and Factor Attribution at Massive Scale
 * **Core Problem:** Identifying a break ($\Delta \text{Break}_i \neq 0$) is insufficient for Operations without mathematically attributing what fraction of the variance derives from shares/quantity ($\Delta Q$), market price ($\Delta P$), or currency conversion ($\Delta \text{FX}$), and preventing opposing errors from canceling out (*Offsetting Errors*).
 * **Third-Order Factorial Attribution Identity and Gross Break:**
-  $$\Delta \text{Break}_i \equiv \underbrace{\Delta Q_i P_0 X_0}_{E_Q} + \underbrace{Q_0 \Delta P_i X_0}_{E_P} + \underbrace{Q_0 P_0 \Delta X_i}_{E_{FX}} + E_{\text{cross}, i}, \qquad \text{Gross\_Break}_p = \sum_{i \in \mathcal{I}_p} |\Delta \text{Break}_i|$$
+  $$\Delta \text{Break}_i \equiv \underbrace{\Delta Q_i P_0 X_0}_{E_Q} + \underbrace{Q_0 \Delta P_i X_0}_{E_P} + \underbrace{Q_0 P_0 \Delta X_i}_{E_{FX}} + E_{\text{cross}, i}, \qquad \text{Gross Break}_p = \sum_{i \in \mathcal{I}_p} |\Delta \text{Break}_i|$$
 * **Architectural Guarantee:** Utilizing a `Parallel Partitioned Radix Hash Join` in Rust and vectorized `pl.when().then().otherwise()` expressions, the engine classifies every position into `[OK] RECONCILED`, `[WARN] MINOR_TOLERANCE`, `[NAV-BREAK]`, or `[CRITICAL] ORPHAN / SCHEMA_REJECTED` with zero Python loops.
 
 #### Synthesis of Module 7: Dual Persistence Architecture (`DuckDB` & `Snowflake`) and Zero-Lock Analytics

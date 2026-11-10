@@ -155,7 +155,7 @@ Donde cada término posee una semántica financiera estricta:
 
 En la formulación canónica simplificada utilizada por la mayoría de los motores de reconciliación de posiciones líquidas (donde el precio unitario ya incorpora el factor de escala y el devengo aplicable), la valoración interna de cada posición se expresa como:
 
-$$\text{NAV}_{i,t}^{\text{IBOR}} = \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX\_Rate}_{c_i \to b_p, t}^{\text{IBOR}}$$
+$$\text{NAV}_{i,t}^{\text{IBOR}} = \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX Rate}_{c_i \to b_p, t}^{\text{IBOR}}$$
 
 #### 1.3.2. Ecuación del Valor Liquidativo Total del Fondo (Fund-Level NAV)
 
@@ -171,15 +171,15 @@ Un error de valoración en una sola posición $i$ que supere el umbral regulator
 
 #### 1.3.3. La Ecuación Maestra de Discrepancia Contable ($\Delta \text{Break}$)
 
-Durante el ciclo de reconciliación en `ASSET-PIPE`, el motor `Polars` cruza el conjunto de posiciones internas ($\text{IBOR}$) contra el archivo certificado remitido por el banco custodio ($\text{ABOR} / \text{Custodian}$) utilizando la clave primaria compuesta $\mathcal{K}_i = (\text{Portfolio\_ID}, \text{ISIN}, \text{Valuation\_Date})$.
+Durante el ciclo de reconciliación en `ASSET-PIPE`, el motor `Polars` cruza el conjunto de posiciones internas ($\text{IBOR}$) contra el archivo certificado remitido por el banco custodio ($\text{ABOR} / \text{Custodian}$) utilizando la clave primaria compuesta $\mathcal{K}_i = (\text{Portfolio ID}, \text{ISIN}, \text{Valuation Date})$.
 
 Para cada clave emparejada, definimos la **Discrepancia Absoluta de Valor Liquidativo ($\Delta \text{Break}_{i,t}$)** como:
 
-$$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX\_Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian\_Reported\_NAV}_{i,t}$$
+$$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian Reported NAV}_{i,t}$$
 
 Complementariamente, definimos la **Discrepancia Relativa en Puntos Básicos ($\delta_{\text{bps}, i, t}$)** respecto al valor reportado por el custodio (donde $1\text{ punto básico [bps]} = 0.01\% = 10^{-4}$):
 
-$$\delta_{\text{bps}, i, t} = \frac{\left| \Delta \text{Break}_{i,t} \right|}{\max\left(\left| \text{Custodian\_Reported\_NAV}_{i,t} \right|, \epsilon\right)} \times 10,000$$
+$$\delta_{\text{bps}, i, t} = \frac{\left| \Delta \text{Break}_{i,t} \right|}{\max\left(\left| \text{Custodian Reported NAV}_{i,t} \right|, \epsilon\right)} \times 10,000$$
 
 Donde $\epsilon = 10^{-9}$ es una constante de regularización numérica para evitar divisiones por cero en posiciones valoradas a cero por una de las partes.
 
@@ -312,7 +312,7 @@ Durante la última década, la industria ha intentado resolver este rango volum�
 2. **El Impuesto de Serialización y Red en `PySpark` (`Apache Spark` sobre la JVM):**
    * **Fricción Fronteriza Python $\leftrightarrow$ JVM (`Py4J` / `Pickle`):** `Apache Spark` está escrito en Scala y se ejecuta dentro de la Máquina Virtual de Java (JVM). Cuando un pipeline de datos financiero invoca lógica de Python en `PySpark`, los datos deben serializarse desde la memoria de la JVM, transmitirse a través de un *socket* de red local (`loopback IPC`) hacia procesos trabajadores de Python (`python worker processes`), deserializarse, procesarse y volver a serializarse hacia la JVM.
    * **Sobrecarga de Recolección de Basura (*JVM Garbage Collection Pauses*):** La gestión de millones de objetos efímeros en el *Heap* de la JVM introduce pausas no deterministas (*Stop-the-World GC pauses*) y exige aprovisionar clústeres distribuidos costosos (`AWS EMR`, `Databricks`) para procesar volúmenes de datos que caben holgadamente en el ancho de banda NVMe/RAM de un único nodo moderno si se procesan en código nativo compilado.
-   * **Barreras de *Shuffle* en Cruces Contables (`IBOR` $\bowtie$ `ABOR`):** Un `JOIN` bilateral por clave compuesta $(\text{Portfolio\_ID}, \text{ISIN}, \text{Valuation\_Date})$ en un clúster Spark obliga a particionar por *hash*, escribir bloques intermedios en disco local y transferir gigabytes por la red entre nodos (*Network Shuffle*). En `Polars`, ese mismo `JOIN` se ejecuta mediante tablas *hash* particionadas en memoria compartida sin red y sin JVM, reduciendo la latencia de minutos a milisegundos.
+   * **Barreras de *Shuffle* en Cruces Contables (`IBOR` $\bowtie$ `ABOR`):** Un `JOIN` bilateral por clave compuesta $(\text{Portfolio ID}, \text{ISIN}, \text{Valuation Date})$ en un clúster Spark obliga a particionar por *hash*, escribir bloques intermedios en disco local y transferir gigabytes por la red entre nodos (*Network Shuffle*). En `Polars`, ese mismo `JOIN` se ejecuta mediante tablas *hash* particionadas en memoria compartida sin red y sin JVM, reduciendo la latencia de minutos a milisegundos.
 
 ---
 
@@ -413,7 +413,7 @@ En `ASSET-PIPE`, queda estrictamente prohibido el uso de lectura ansiosa (`pl.re
 
 1. **Poda de Proyección (*Projection Pushdown*):** Si un archivo Parquet de un banco custodio contiene $85$ columnas (incluyendo descripciones legales extensas, direcciones postales del emisor y notas de auditoría), pero la ecuación de reconciliación NAV solo requiere $7$ columnas (`portfolio_id`, `isin`, `valuation_date`, `currency`, `units`, `price`, `fx_rate`, `custodian_reported_nav`), el optimizador reescribe el plan de lectura para solicitar vía HTTP `Range GET` a `AWS S3 / MinIO` única y exclusivamente los bytes correspondientes a esos $7$ *Column Chunks*. El ahorro inmediato de ancho de banda de red y memoria RAM supera el $90\%$.
 2. **Poda de Predicados (*Predicate Pushdown*):** Si filtramos una fecha de valoración o una cartera específica (`.filter(pl.col("portfolio_id") == "BLK-CREDIT-01")`), `Polars` evalúa el predicado contra las estadísticas `min_value` y `max_value` almacenadas en el pie de página (*Footer*) de cada *Row Group* del archivo Parquet. Si un bloque de $100,000$ filas tiene como rango `["FUND-A", "FUND-M"]` y no contiene `"BLK-CREDIT-01"`, el bloque entero se descarta sin descomprimirlo ni leerlo.
-3. **Fusión de Expresiones y Eliminación de Subplanes Comunes (*Common Subplan Elimination*):** Múltiples cálculos derivados (como el cálculo del $\text{IBOR\_NAV}$, la diferencia absoluta $\Delta \text{Break}$ y la diferencia relativa en puntos básicos $\delta_{\text{bps}}$) se fusionan en una única pasada por los registros del procesador (*Operator Fusion / Pipelining*), evitando materializar columnas temporales intermedias en la memoria RAM.
+3. **Fusión de Expresiones y Eliminación de Subplanes Comunes (*Common Subplan Elimination*):** Múltiples cálculos derivados (como el cálculo del $\text{IBOR NAV}$, la diferencia absoluta $\Delta \text{Break}$ y la diferencia relativa en puntos básicos $\delta_{\text{bps}}$) se fusionan en una única pasada por los registros del procesador (*Operator Fusion / Pipelining*), evitando materializar columnas temporales intermedias en la memoria RAM.
 
 ---
 
@@ -691,7 +691,7 @@ En la capa de infraestructura de `ASSET-PIPE` (`src/infrastructure/s3_parquet_ad
 * **Hive-Style Partitioning (Particionamiento Estilo Hive):** Convención de organización de claves en un Data Lake donde los valores de las columnas de filtrado más frecuentes se codifican como prefijos `clave=valor/` en la ruta del objeto (por ejemplo, `s3://asset-pipe/validated-parquet/valuation_date=2026-11-09/batch.parquet`), permitiendo al motor de consultas descartar prefijos completos antes incluso de leer los *Footers* de los archivos Parquet.
 * **MinIO:** Servidor de almacenamiento de objetos de alto rendimiento, nativo de contenedores y escrito en Go, que implementa de forma 100% compatible la API `Amazon S3 v4`. En `ASSET-PIPE` proporciona un Data Lake S3 local idéntico a producción accesible vía API en `:9000` y vía consola web en `:9001`.
 * **PAX (*Partition Attributes Across*):** Modelo de diseño físico de almacenamiento en disco en el que una tabla relacional se divide primero horizontalmente en épocas o grupos de filas (*Row Groups*) y luego verticalmente por atributos (*Column Chunks*) dentro de cada grupo, combinando la localidad de registro con la eficiencia de lectura columnar.
-* **RLE (*Run-Length Encoding*) & Bit-Packing:** Par de técnicas de codificación sin pérdida utilizadas por `Apache Parquet`. *RLE* reemplaza secuencias de valores idénticos consecutivos por el par `(valor, número_de_repeticiones)`, mientras que *Bit-Packing* almacena enteros pequeños utilizando exactamente el número mínimo de bits $\lceil \log_2(\text{max\_val}) \rceil$ en lugar de palabras completas de $32$ o $64\text{ bits}$.
+* **RLE (*Run-Length Encoding*) & Bit-Packing:** Par de técnicas de codificación sin pérdida utilizadas por `Apache Parquet`. *RLE* reemplaza secuencias de valores idénticos consecutivos por el par `(valor, número_de_repeticiones)`, mientras que *Bit-Packing* almacena enteros pequeños utilizando exactamente el número mínimo de bits $\lceil \log_2(\text{max val}) \rceil$ en lugar de palabras completas de $32$ o $64\text{ bits}$.
 * **Row Group (Grupo de Filas):** Partición horizontal de un archivo `Apache Parquet` (habitualmente de entre $100,000$ y $1,000,000$ de filas) que agrupa un conjunto completo de *Column Chunks* y mantiene estadísticas `min/max` propias para habilitar la poda de lectura y la ejecución paralela multihilo.
 * **Small File Problem (Problema de los Archivos Pequeños):** Degradación severa de rendimiento en Data Lakes que ocurre cuando millones de registros se escriben fragmentados en miles de archivos de pocos kilobytes en lugar de agruparse en bloques de $64\text{ MB} - 256\text{ MB}$, provocando que la latencia de negociación de cabeceras HTTP (`TCP/TLS Handshake` y llamadas `LIST/GET` a S3) supere el tiempo real de transferencia de datos.
 * **Strong Read-After-Write Consistency (Consistencia Fuerte de Lectura tras Escritura):** Garantía formal del sistema de almacenamiento distribuido según la cual, inmediatamente después de recibir la confirmación `HTTP 200 OK` de la escritura (`PUT`) o borrado (`DELETE`) de un objeto, cualquier lectura posterior (`GET` o `LIST`) desde cualquier proceso o nodo observará de forma determinista el nuevo estado sin retrasos de propagación.
@@ -790,8 +790,8 @@ En Python estándar y en la configuración por defecto de muchos serializadores 
 $$\begin{aligned}
 \text{Units}_{i,t} &\in \mathbb{R} \setminus \{-\infty, +\infty, \text{NaN}\} && (\text{Permite posiciones largas } > 0, \text{ cortas } < 0 \text{ y cerradas } = 0) \\
 \text{Price}_{i,t} &\in [0, +\infty) \subset \mathbb{R} && (\text{Precio no negativo finito: } 0 \le P_{i,t} < +\infty) \\
-\text{FX\_Rate}_{c \to b, t} &\in (0, +\infty) \subset \mathbb{R} && (\text{Tipo de cambio estrictamente positivo finito: } 0 < \text{FX}_{c \to b, t} < +\infty) \\
-\text{Custodian\_NAV}_{i,t} &\in \mathbb{R} \setminus \{-\infty, +\infty, \text{NaN}\} && (\text{Valor liquidativo finito reportado por el depositario})
+\text{FX Rate}_{c \to b, t} &\in (0, +\infty) \subset \mathbb{R} && (\text{Tipo de cambio estrictamente positivo finito: } 0 < \text{FX}_{c \to b, t} < +\infty) \\
+\text{Custodian NAV}_{i,t} &\in \mathbb{R} \setminus \{-\infty, +\infty, \text{NaN}\} && (\text{Valor liquidativo finito reportado por el depositario})
 \end{aligned}$$
 
 ---
@@ -905,7 +905,7 @@ Formalmente, sea $\Psi_{\text{row}}(r_i) \in \{0, 1\}$ el predicado de validaci�
 
 1. **Violación de Unicidad de Clave Compuesta (*Duplicate Primary Key Replay*):** Debido a un reintento defectuoso en el exportador del banco custodio, la posición de Apple Inc. (`US0378331005`) para el fondo `BLK-ALADDIN-01` en la fecha `2026-11-09` aparece duplicada dos veces dentro del mismo archivo. Individualmente, ambas filas tienen un `ISIN` válido, divisa `USD` válida y precios finitos positivos ($\Psi_{\text{row}}(r_k) = \Psi_{\text{row}}(r_j) = 1$). Si este lote entra en el motor de reconciliación, un `JOIN` o una agregación duplicará artificialmente el Valor Liquidativo ($\text{NAV}$) de esa posición en un $+100\%$.
 2. **Truncamiento Parcial de Transmisión (*Truncated SFTP/S3 Drop*):** Un fondo institucional mantiene habitualmente entre $450$ y $500$ posiciones activas cada día, con un volumen de Activos Bajo Gestión (*Assets Under Management* o **AUM**) de $\$1,200\text{ millones}$. Un corte de red interrumpe la generación del archivo en origen tras escribir la fila $80$, cerrando limpiamente el archivo. Las $80$ filas son sintácticamente perfectas, pero falta el $84\%$ de la cartera.
-3. **Invariante de Identidad Cambiaria en Divisa Base (*Base Currency FX Identity Violation*):** Una fila declara que la divisa local del activo coincide con la divisa base del fondo ($c_i = b_p = \text{'USD'}$), y reporta un tipo de cambio $\text{FX\_Rate} = 1.0850$ (que es un número positivo finito válido para el validador individual, pero matemáticamente imposible para el par $\text{USD} \to \text{USD}$, donde el tipo de cambio debe ser idénticamente $1.000000$).
+3. **Invariante de Identidad Cambiaria en Divisa Base (*Base Currency FX Identity Violation*):** Una fila declara que la divisa local del activo coincide con la divisa base del fondo ($c_i = b_p = \text{'USD'}$), y reporta un tipo de cambio $\text{FX Rate} = 1.0850$ (que es un número positivo finito válido para el validador individual, pero matemáticamente imposible para el par $\text{USD} \to \text{USD}$, donde el tipo de cambio debe ser idénticamente $1.000000$).
 4. **Deriva Estadística Extrema (*Distributional Drift & Fat-Finger Batch Errors*):** Un error de escala en el proveedor de precios multiplica por $100$ toda la columna de precios de renta fija (enviando precios en base $10,000$ en lugar de base $100$). Ningún precio es negativo ni `NaN`, pero la mediana de discrepancia del lote salta al $9,900\%$.
 
 Para interceptar estas anomalías de conjunto antes de escribir en `s3://asset-pipe/validated-parquet/`, **`ASSET-PIPE`** implementa una **Segunda Aduana Declarativa de Invariantes de Lote** basada en el paradigma de **`Great Expectations` (*Expectation Suites*)** ejecutada de forma nativa y vectorizada sobre el lote en memoria (`src/domain/invariants.py`).
@@ -918,15 +918,15 @@ En `ASSET-PIPE`, un lote $\mathcal{B}$ solo recibe la certificación criptográf
 
 #### 5.2.1. Invariante $E_1$: Unicidad Estricta de Clave Primaria Compuesta (`expect_compound_columns_to_be_unique`)
 
-Definimos la tupla de identidad contable de cada registro $r_i \in \mathcal{B}$ como $k(r_i) = (\text{portfolio\_id}_i, \, \text{isin}_i, \, \text{valuation\_date}_i)$. La cardinalidad del conjunto de claves distintas debe coincidir exactamente con el número total de registros válidos del lote (o los registros duplicados deben ser aislados antes de la agregación):
+Definimos la tupla de identidad contable de cada registro $r_i \in \mathcal{B}$ como $k(r_i) = (\text{portfolio id}_i, \, \text{isin}_i, \, \text{valuation date}_i)$. La cardinalidad del conjunto de claves distintas debe coincidir exactamente con el número total de registros válidos del lote (o los registros duplicados deben ser aislados antes de la agregación):
 
-$$E_1(\mathcal{B}) \iff \left| \left\{ (\text{portfolio\_id}_i, \, \text{isin}_i, \, \text{valuation\_date}_i) : r_i \in \mathcal{B} \right\} \right| == |\mathcal{B}|$$
+$$E_1(\mathcal{B}) \iff \left| \left\{ (\text{portfolio id}_i, \, \text{isin}_i, \, \text{valuation date}_i) : r_i \in \mathcal{B} \right\} \right| == |\mathcal{B}|$$
 
 Cualquier colisión $k(r_i) == k(r_j)$ para $i \neq j$ dispara inmediatamente la regla `COMPOUND_KEY_DUPLICATE_DETECTED`.
 
 #### 5.2.2. Invariante $E_2$: Completitud Absoluta de Columnas Canónicas (`expect_column_values_to_not_be_null`)
 
-Para todo atributo perteneciente al núcleo contable obligatorio $\mathcal{A}_{\text{core}} = \{\text{position\_id}, \text{portfolio\_id}, \text{isin}, \text{valuation\_date}, \text{currency}, \text{units}, \text{price}, \text{fx\_rate}, \text{custodian\_reported\_nav}\}$, el recuento de bits nulos en el *Validity Bitmap* de `Apache Arrow` debe ser idénticamente cero:
+Para todo atributo perteneciente al núcleo contable obligatorio $\mathcal{A}_{\text{core}} = \{\text{position id}, \text{portfolio id}, \text{isin}, \text{valuation date}, \text{currency}, \text{units}, \text{price}, \text{fx rate}, \text{custodian reported nav}\}$, el recuento de bits nulos en el *Validity Bitmap* de `Apache Arrow` debe ser idénticamente cero:
 
 $$E_2(\mathcal{B}) \iff \sum_{a \in \mathcal{A}_{\text{core}}} \text{NullCount}(\mathcal{B}, a) == 0$$
 
@@ -934,13 +934,13 @@ $$E_2(\mathcal{B}) \iff \sum_{a \in \mathcal{A}_{\text{core}}} \text{NullCount}(
 
 Para toda posición $r_i \in \mathcal{B}$ cuya divisa local coincida con la divisa base de consolidación ($b_p = \text{'USD'}$ por defecto), el factor de conversión cambiaria no puede desviarse de la unidad más allá de la precisión de máquina $\epsilon = 10^{-6}$:
 
-$$E_3(\mathcal{B}) \iff \forall r_i \in \mathcal{B}, \quad \left( \text{currency}_i == b_p \implies \left| \text{fx\_rate}_i - 1.0 \right| \le 10^{-6} \right)$$
+$$E_3(\mathcal{B}) \iff \forall r_i \in \mathcal{B}, \quad \left( \text{currency}_i == b_p \implies \left| \text{fx rate}_i - 1.0 \right| \le 10^{-6} \right)$$
 
 #### 5.2.4. Invariante $E_4$: Ecuación de Conservación Contable del Valor Liquidativo (`expect_nav_accounting_equation_to_hold`)
 
 El corazón de la auditoría declarativa en `ASSET-PIPE` es la expectativa de conservación del Valor Liquidativo. Para cada posición $r_i$, el motor evalúa de forma vectorizada la discrepancia absoluta $\Delta \text{Break}_i$ y la discrepancia relativa en puntos básicos $\delta_{\text{bps}, i}$:
 
-$$\Delta \text{Break}_i = \left( \text{units}_i \times \text{price}_i \times \text{fx\_rate}_i \right) - \text{custodian\_reported\_nav}_i$$
+$$\Delta \text{Break}_i = \left( \text{units}_i \times \text{price}_i \times \text{fx rate}_i \right) - \text{custodian reported nav}_i$$
 
 Esta expectativa clasifica el lote en dos niveles de acción operativa:
 * **Nivel de Posición (`Position-Level Break Tagging`):** Si $|\Delta \text{Break}_i| > \tau_{\text{abs}}$ (donde el umbral contable estricto es $\tau_{\text{abs}} = \$0.01$ o $\delta_{\text{bps}, i} > 1.0\text{ bps}$), la posición **no se descarta a ciegas** si su esquema es válido, sino que se **etiqueta explícitamente como `[NAV-BREAK]`** para que aparezca iluminada en la tarjeta interactiva **`NAV & Schema Breaks`** de la Consola Financiera (`:3000`) y quede registrada en las vistas de auditoría del Data Warehouse (`:4213`).
@@ -950,7 +950,7 @@ Esta expectativa clasifica el lote en dos niveles de acción operativa:
 
 Todo lote válido debe satisfacer la cota de volumen no vacío $|\mathcal{B}| \in [N_{\min}, N_{\max}]$ (con $N_{\min} \ge 1$) y verificar que el Valor Liquidativo Agregado del lote sea un número real finito:
 
-$$E_5(\mathcal{B}) \iff |\mathcal{B}| \ge 1 \;\land\; \left| \sum_{i=1}^{|\mathcal{B}|} \text{custodian\_reported\_nav}_i \right| < +\infty$$
+$$E_5(\mathcal{B}) \iff |\mathcal{B}| \ge 1 \;\land\; \left| \sum_{i=1}^{|\mathcal{B}|} \text{custodian reported nav}_i \right| < +\infty$$
 
 ---
 
@@ -1053,7 +1053,7 @@ Cada vez que el disyuntor desvía registros hacia `s3://asset-pipe/quarantine/`,
 El diseño del bucket `s3://asset-pipe/quarantine/` no es un cementerio pasivo de datos, sino una cola de recuperación activa (*Dead-Letter Replay Queue*). Tal como se documentará operativamente en nuestro Runbook `docs/runbooks/02-s3-quarantine-schema-drift-recovery.md`:
 1. El equipo de ingeniería de datos o de operaciones de custodia inspecciona las filas aisladas directamente desde la tarjeta **`NAV & Schema Breaks`** de la Consola Ejecutiva (`:3000`) o descargando el manifiesto desde la consola web de `AWS S3 / MinIO (:9001)`.
 2. Una vez corregido el error en origen por el custodio (por ejemplo, sustituido el código `ISIN` erróneo o rectificado el precio `NaN`), el lote reparado se deposita de nuevo en `landing/`.
-3. Gracias a la idempotencia por clave compuesta $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$ del motor de persistencia en `DuckDB / Snowflake`, la re-ingesta actualiza limpiamente las posiciones pendientes sin duplicar las $99,985$ posiciones que ya habían sido conciliadas con éxito en el primer ciclo.
+3. Gracias a la idempotencia por clave compuesta $(\text{portfolio id}, \text{isin}, \text{valuation date})$ del motor de persistencia en `DuckDB / Snowflake`, la re-ingesta actualiza limpiamente las posiciones pendientes sin duplicar las $99,985$ posiciones que ya habían sido conciliadas con éxito en el primer ciclo.
 
 ---
 
@@ -1076,7 +1076,7 @@ El diseño del bucket `s3://asset-pipe/quarantine/` no es un cementerio pasivo d
 * **AUM (*Assets Under Management* / Activos Bajo Gestión):** Valor total de mercado de todas las inversiones financieras que una entidad gestora administra en nombre de sus clientes e inversores institucionales. En la validación de lotes, la suma agregada de `custodian_reported_nav` actúa como suma de control (*checksum*) del AUM diario.
 * **Atomic Batch Bifurcation (Bifurcación Atómica de Lote):** Patrón de ingeniería de datos en el cual un flujo de entrada heterogéneo $\mathcal{B}$ se particiona en una sola pasada lógica mediante una máscara booleana de validación $M \in \{0, 1\}^N$ en dos subconjuntos disjuntos ($\mathcal{B}_{\text{valid}} \cap \mathcal{B}_{\text{quarantine}} = \emptyset$ y $\mathcal{B}_{\text{valid}} \cup \mathcal{B}_{\text{quarantine}} = \mathcal{B}$), garantizando que ni un solo registro se pierda ni se duplique en tránsito.
 * **Circuit Breaker Pattern (Patrón Disyuntor):** Mecanismo de protección automática inspirado en la ingeniería eléctrica que monitorea la tasa de fallos de un flujo de datos y, cuando la proporción de registros corruptos supera un umbral crítico de seguridad ($\Theta_{\text{abort}}$), interrumpe la propagación hacia los sistemas aguas abajo para evitar fallos en cascada.
-* **Compound Primary Key (Clave Primaria Compuesta):** Identificador único de una entidad relacional formado por la combinación ordenada de dos o más atributos de dominio. En la reconciliación contable de carteras, la clave primaria canónica está constituida por la terna $(\text{portfolio\_id}, \, \text{isin}, \, \text{valuation\_date})$.
+* **Compound Primary Key (Clave Primaria Compuesta):** Identificador único de una entidad relacional formado por la combinación ordenada de dos o más atributos de dominio. En la reconciliación contable de carteras, la clave primaria canónica está constituida por la terna $(\text{portfolio id}, \, \text{isin}, \, \text{valuation date})$.
 * **Data Quality Shift-Left (Desplazamiento a la Izquierda de la Calidad del Dato):** Principio arquitectónico que exige trasladar todas las reglas de validación, tipado y auditoría contable lo más cerca posible del punto de origen o ingesta (antes de transformar o cargar en el Data Warehouse), reduciendo drásticamente el coste de remediación y el consumo de cómputo en la nube.
 * **Expectation & Expectation Suite (Expectativa y Suite de Expectativas):** En la arquitectura de `Great Expectations`, una *Expectation* es una aserción declarativa, verificable por máquina y expresada en lenguaje de dominio sobre una propiedad de los datos (por ejemplo, `expect_column_values_to_not_be_null`). Una *Expectation Suite* es el contrato completo que agrupa todas las aserciones que certifican la calidad de un conjunto de datos.
 * **Forensic Manifest (`.manifest.json`):** Artefacto de metadatos inmutable generado automáticamente junto a cada archivo depositado en la zona de cuarentena (`s3://asset-pipe/quarantine/`). Contiene la huella criptográfica `SHA-256` del lote original, las métricas volumétricas de rechazo y el desglose exacto de las reglas de negocio vulneradas para auditoría regulatoria.
@@ -1090,18 +1090,18 @@ Una vez que los lotes de datos han superado la doble aduana de validación en or
 
 Desde el punto de vista de la teoría de conjuntos relacionales, sean $\mathcal{L}_{\text{IBOR}}$ el conjunto de posiciones del Libro Interno de Inversión y $\mathcal{L}_{\text{ABOR}}$ el conjunto de posiciones reportadas por el Libro Contable del Custodio para una fecha de corte $t$. Definimos la clave primaria compuesta de emparejamiento para todo registro como:
 
-$$\mathcal{K}_i = (\text{portfolio\_id}_i, \, \text{isin}_i, \, \text{valuation\_date}_i)$$
+$$\mathcal{K}_i = (\text{portfolio id}_i, \, \text{isin}_i, \, \text{valuation date}_i)$$
 
 Un error común en pipelines financieros rudimentarios consiste en cruzar ambos libros mediante un `INNER JOIN` ($\mathcal{L}_{\text{IBOR}} \bowtie_{\text{inner}} \mathcal{L}_{\text{ABOR}}$). En contabilidad bancaria, un `INNER JOIN` constituye un fallo grave de diseño: si la gestora ejecutó una compra de $\$50,000,000$ en bonos del Tesoro estadounidense a última hora ($\mathcal{K}_i \in \mathcal{L}_{\text{IBOR}}$) pero la instrucción SWIFT MT541 no llegó al banco custodio ($\mathcal{K}_i \notin \mathcal{L}_{\text{ABOR}}$), un `INNER JOIN` descarta silenciosamente esa fila por no tener contrapartida, ocultando un agujero patrimonial de $\$50\text{ millones}$.
 
 Por consiguiente, todo motor institucional de reconciliación debe operar mediante un **Cruce Externo Completo Simétrico (*Symmetric Full Outer Equi-Join*)** o una evaluación unificada con indicadores de presencia bilateral:
 
-$$\mathcal{U}_t = \mathcal{L}_{\text{IBOR}} \;\_{\mathcal{K}}\; \mathcal{L}_{\text{ABOR}} = \underbrace{\left(\mathcal{L}_{\text{IBOR}} \cap_{\mathcal{K}} \mathcal{L}_{\text{ABOR}}\right)}_{\text{Posiciones Emparejadas (Matched Keys)}} \;\cup\; \underbrace{\left(\mathcal{L}_{\text{IBOR}} \setminus_{\mathcal{K}} \mathcal{L}_{\text{ABOR}}\right)}_{\text{Huérfanas en IBOR (Unsettled/Late Trades)}} \;\cup\; \underbrace{\left(\mathcal{L}_{\text{ABOR}} \setminus_{\mathcal{K}} \mathcal{L}_{\text{IBOR}}\right)}_{\text{Huérfanas en Custodio (Unrecorded Booking)}}$$
+$$\mathcal{U}_t = \mathcal{L}_{\text{IBOR}} \;\bowtie_{\mathcal{K}}\; \mathcal{L}_{\text{ABOR}} = \underbrace{\left(\mathcal{L}_{\text{IBOR}} \cap_{\mathcal{K}} \mathcal{L}_{\text{ABOR}}\right)}_{\text{Posiciones Emparejadas (Matched Keys)}} \;\cup\; \underbrace{\left(\mathcal{L}_{\text{IBOR}} \setminus_{\mathcal{K}} \mathcal{L}_{\text{ABOR}}\right)}_{\text{Huérfanas en IBOR (Unsettled/Late Trades)}} \;\cup\; \underbrace{\left(\mathcal{L}_{\text{ABOR}} \setminus_{\mathcal{K}} \mathcal{L}_{\text{IBOR}}\right)}_{\text{Huérfanas en Custodio (Unrecorded Booking)}}$$
 
 #### Ejecución Física del Cruce en `Polars` (*Partitioned Parallel Hash Join*)
 
 Cuando `Polars` ejecuta este cruce sobre millones de posiciones, evita cualquier ordenación global costosa $O(N \log N)$ y despliega un algoritmo **Parallel Partitioned Hash Join** en dos fases dentro de Rust:
-1. **Fase de Particionado por *Radix Hash* (`xxHash64`):** Ambos flujos (`IBOR` y `ABOR`) se hashean vectorialmente por la tupla $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$ utilizando los bits superiores del hash para distribuir las filas en $P = 2^k$ cubetas independientes (*Radix Partitions*, donde $P$ es proporcional al número de núcleos físicos).
+1. **Fase de Particionado por *Radix Hash* (`xxHash64`):** Ambos flujos (`IBOR` y `ABOR`) se hashean vectorialmente por la tupla $(\text{portfolio id}, \text{isin}, \text{valuation date})$ utilizando los bits superiores del hash para distribuir las filas en $P = 2^k$ cubetas independientes (*Radix Partitions*, donde $P$ es proporcional al número de núcleos físicos).
 2. **Fase de Construcción y Sondeo sin Bloqueos (*Lock-Free Build & Probe*):** Dado que dos claves idénticas caen con certeza matemática en la misma partición $p \in \{0, \dots, P-1\}$, los hilos de `Rayon` construyen y sondean las tablas hash de cada partición en paralelo sin necesitar ni un solo bloqueo de exclusión mutua (*Mutex*) entre núcleos, logrando complejidad temporal lineal estricta $\mathcal{O}(|\mathcal{L}_{\text{IBOR}}| + |\mathcal{L}_{\text{ABOR}}|)$.
 
 ---
@@ -1117,17 +1117,17 @@ Definimos los vectores columnares contiguos en memoria `Apache Arrow` ($\mathbf{
 El motor `Polars` compila en una única pasada fusionada (*Fused Kernel*) las tres ecuaciones fundamentales:
 
 1. **Vector de Valor Liquidativo Calculado por el Motor ($\mathbf{N}_{\text{calc}}$):**
-   $$\mathbf{N}_{\text{calc}} = \mathbf{U} \odot \mathbf{P} \odot \mathbf{F} \quad \Longleftrightarrow \quad \text{calculated\_nav}_i = \text{units}_i \times \text{price}_i \times \text{fx\_rate}_i$$
+   $$\mathbf{N}_{\text{calc}} = \mathbf{U} \odot \mathbf{P} \odot \mathbf{F} \quad \Longleftrightarrow \quad \text{calculated nav}_i = \text{units}_i \times \text{price}_i \times \text{fx rate}_i$$
    *(donde $\odot$ denota el producto elemento a elemento o producto de Hadamard ejecutado en registros vectoriales `AVX2`/`AVX-512`)*.
 
 2. **Vector de Discrepancia Monetaria Con Signo ($\boldsymbol{\Delta}_{\text{break}}$) y Magnitud Absoluta ($|\boldsymbol{\Delta}_{\text{break}}|$):**
-   $$\Delta \text{Break}_i = \text{calculated\_nav}_i - \text{custodian\_reported\_nav}_i$$
+   $$\Delta \text{Break}_i = \text{calculated nav}_i - \text{custodian reported nav}_i$$
    * **Interpretación contable del signo:**
      * Si $\Delta \text{Break}_i > 0$: El libro interno (**IBOR**) sobrevalora la posición respecto al banco custodio (**ABOR**).
      * Si $\Delta \text{Break}_i < 0$: El libro interno (**IBOR**) infravalora la posición respecto al banco custodio (**ABOR**).
 
 3. **Vector de Severidad Relativa en Puntos Básicos ($\boldsymbol{\delta}_{\text{bps}}$):**
-   $$\delta_{\text{bps}, i} = \frac{\left| \Delta \text{Break}_i \right|}{\max\left( \left| \text{custodian\_reported\_nav}_i \right|, \, \left| \text{calculated\_nav}_i \right|, \, \epsilon \right)} \times 10,000 \quad (\text{con } \epsilon = 10^{-9})$$
+   $$\delta_{\text{bps}, i} = \frac{\left| \Delta \text{Break}_i \right|}{\max\left( \left| \text{custodian reported nav}_i \right|, \, \left| \text{calculated nav}_i \right|, \, \epsilon \right)} \times 10,000 \quad (\text{con } \epsilon = 10^{-9})$$
 
 ---
 
@@ -1152,7 +1152,7 @@ $$\Delta \text{Break}_i \equiv E_{Q,i} + E_{P,i} + E_{FX,i} + E_{\text{cross},i}
 
 Esta atribución factorial permite que el árbol de decisión de `ASSET-PIPE` clasifique automáticamente la causa raíz primaria del descuadre según cuál de los componentes explique la mayor fracción de la varianza total:
 
-$$\text{Primary\_Driver}_i = \arg\max_{k \in \{Q, P, FX\}} \left| E_{k, i} \right|$$
+$$\text{Primary Driver}_i = \arg\max_{k \in \{Q, P, FX\}} \left| E_{k, i} \right|$$
 
 ---
 
@@ -1216,9 +1216,9 @@ Un aspecto de diseño que distingue a un arquitecto cuantitativo senior es el tr
 Además de producir la tabla granular de posiciones reconciliadas, el motor `Polars` computa en una sola expresión agregada el **Resumen Ejecutivo por Cartera (*Portfolio NAV Summary Rollup*)**:
 
 $$\begin{aligned}
-\text{AUM}_{\text{IBOR}, p} &= \sum_{i \in \mathcal{I}_p} \text{calculated\_nav}_i, \qquad \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \text{custodian\_reported\_nav}_i \\
-\text{Net\_Fund\_Break}_p &= \text{AUM}_{\text{IBOR}, p} - \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \Delta \text{Break}_i \\
-\text{Gross\_Fund\_Break}_p &= \sum_{i \in \mathcal{I}_p} \left| \Delta \text{Break}_i \right|
+\text{AUM}_{\text{IBOR}, p} &= \sum_{i \in \mathcal{I}_p} \text{calculated nav}_i, \qquad \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \text{custodian reported nav}_i \\
+\text{Net Fund Break}_p &= \text{AUM}_{\text{IBOR}, p} - \text{AUM}_{\text{Custodian}, p} = \sum_{i \in \mathcal{I}_p} \Delta \text{Break}_i \\
+\text{Gross Fund Break}_p &= \sum_{i \in \mathcal{I}_p} \left| \Delta \text{Break}_i \right|
 \end{aligned}$$
 
 * **Por qué es vital distinguir entre `Net_Fund_Break` y `Gross_Fund_Break`:**
@@ -1290,7 +1290,7 @@ flowchart TB
 
 #### Garantías del Contrato `WarehousePort`:
 1. **Ingesta Basada en Memoria Columnar (`Apache Arrow` / `Polars DataFrame`):** El método `upsert_reconciled_positions` no recibe listas de diccionarios de Python ni cadenas `INSERT INTO ... VALUES (...)` fila por fila. Recibe un buffer columnar `Apache Arrow` generado por `Polars`.
-2. **Idempotencia Transaccional (`MERGE` / `INSERT OR REPLACE`):** Si un lote para la misma clave compuesta $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$ se reprocesa tras una corrección de cuarentena, el adaptador ejecuta una operación `UPSERT` atómica que actualiza el estado de la posición sin duplicar filas ni inflar el Valor Liquidativo agregado.
+2. **Idempotencia Transaccional (`MERGE` / `INSERT OR REPLACE`):** Si un lote para la misma clave compuesta $(\text{portfolio id}, \text{isin}, \text{valuation date})$ se reprocesa tras una corrección de cuarentena, el adaptador ejecuta una operación `UPSERT` atómica que actualiza el estado de la posición sin duplicar filas ni inflar el Valor Liquidativo agregado.
 3. **Reseteo Determinista a Línea Base Cero (`reset_warehouse_to_zero`):** Permite vaciar de forma atómica y transaccional (`TRUNCATE TABLE`) las tablas analíticas cuando el usuario pulsa el botón `Reset to 0` en la Consola Ejecutiva (`:3000`), garantizando el cumplimiento estricto del estándar *Honest Zero Baseline* (`$0.00`).
 
 ---
@@ -1515,7 +1515,7 @@ Las contraseñas tradicionales son vulnerables a ataques de fuerza bruta, *phish
 2. Se elige el exponente público estándar $e = 65,537$ y se calcula el exponente privado $d \equiv e^{-1} \pmod{\lambda(n)}$.
 3. La **Llave Pública** $(n, e)$ se registra en `Snowflake` mediante `ALTER USER ASSET_PIPE_SVC_USER SET RSA_PUBLIC_KEY = 'MIIBIjANBgkqhki...'`, junto con una segunda ranura `RSA_PUBLIC_KEY_2` para permitir la **Rotación de Llaves sin Tiempo de Inactividad (*Zero-Downtime Key Rotation*)**.
 4. Cuando el adaptador `SnowflakeAdapter` de `ASSET-PIPE` inicia una conexión, construye localmente un *JSON Web Token* (**JWT**) con la huella digital `SHA-256` de la llave pública, el identificador de cuenta y una marca de expiración corta (`exp` $\le 60\text{ segundos}$), firmándolo matemáticamente con la **Llave Privada** $(n, d)$:
-   $$\sigma = \left( \text{SHA256}(\text{JWT\_Header.JWT\_Payload}) \right)^d \bmod n$$
+   $$\sigma = \left( \text{SHA256}(\text{JWT Header.JWT Payload}) \right)^d \bmod n$$
 5. `Snowflake` verifica la firma aplicando la llave pública registrada ($\sigma^e \bmod n$). La llave privada **jamás viaja por la red**.
 
 #### 8.3.2. Control de Acceso Basado en Roles de Mínimo Privilegio (*Least-Privilege RBAC*)
@@ -1752,7 +1752,7 @@ A lo largo de los nueve módulos precedentes hemos establecido los fundamentos m
 #### Síntesis del Módulo 1: Dominio Institucional de Reconciliación y Álgebra del Valor Liquidativo (NAV)
 * **Problema Fundamental:** En la gestión institucional de activos (ecosistemas tipo BlackRock Aladdin, Blackstone o Santander Securities Services), el Libro Interno de Inversión (**IBOR**) y el Libro Contable del Custodio (**ABOR**) divergen diariamente en los ciclos *T+0 / T+1* debido a desfases de liquidación, jerarquías de precios de mercado y cortes horarios de tipos de cambio.
 * **Ecuación Invariante de Reconciliación:**
-  $$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX\_Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian\_Reported\_NAV}_{i,t}$$
+  $$\Delta \text{Break}_{i,t} = \left( \text{Units}_{i,t}^{\text{IBOR}} \times \text{Price}_{i,t}^{\text{IBOR}} \times \text{FX Rate}_{c_i \to b_p, t}^{\text{IBOR}} \right) - \text{Custodian Reported NAV}_{i,t}$$
 * **Garantía Arquitectónica:** `ASSET-PIPE` reemplaza las cajas negras propietarias (Duco, AutoRek) por un pipeline 100% auditable en GitOps que clasifica determinísticamente cada posición según su desviación monetaria absoluta ($|\Delta \text{Break}_{i,t}|$) y relativa en puntos básicos ($\delta_{\text{bps}, i, t}$).
 
 #### Síntesis del Módulo 2: Motores Vectorizados en Rust (`Polars` y `Apache Arrow`) frente a `Pandas` y `PySpark`
@@ -1777,12 +1777,12 @@ A lo largo de los nueve módulos precedentes hemos establecido los fundamentos m
 * **Problema Fundamental:** La validez individual de cada fila no garantiza la integridad del lote como conjunto (pueden existir claves primarias compuestas duplicadas o incoherencias entre columnas como `currency == 'USD'` con `fx_rate != 1.0`).
 * **Bifurcación Atómica de Conjunto:**
   $$\mathcal{B} = \mathcal{B}_{\text{valid}} \sqcup \mathcal{B}_{\text{quarantine}} \quad \text{tal que} \quad \mathcal{B}_{\text{valid}} \cap \mathcal{B}_{\text{quarantine}} = \emptyset$$
-* **Garantía Arquitectónica:** Una suite declarativa de siete expectativas (`GX-01` a `GX-07`) audita la unicidad de la clave $(\text{portfolio\_id}, \text{isin}, \text{valuation\_date})$, la completitud no nula y la ecuación del NAV. Las filas infractoras jamás detienen ni contaminan el lote sano: se desvían de forma atómica a `s3://asset-pipe/quarantine/` acompañadas de un manifiesto forense `.manifest.json` con huella `SHA-256`.
+* **Garantía Arquitectónica:** Una suite declarativa de siete expectativas (`GX-01` a `GX-07`) audita la unicidad de la clave $(\text{portfolio id}, \text{isin}, \text{valuation date})$, la completitud no nula y la ecuación del NAV. Las filas infractoras jamás detienen ni contaminan el lote sano: se desvían de forma atómica a `s3://asset-pipe/quarantine/` acompañadas de un manifiesto forense `.manifest.json` con huella `SHA-256`.
 
 #### Síntesis del Módulo 6: Algoritmos de Reconciliación Contable y Atribución Factorial a Escala Masiva
 * **Problema Fundamental:** Detectar un descuadre ($\Delta \text{Break}_i \neq 0$) es insuficiente para Operaciones y Tesorería si no se atribuye matemáticamente qué fracción del error proviene de títulos ($\Delta Q$), de precio ($\Delta P$) o de tipo de cambio ($\Delta \text{FX}$), y si no se previenen los errores compensatorios de signo opuesto (*Offsetting Errors*).
 * **Identidad de Atribución Factorial de Tercer Orden y Descuadre Bruto:**
-  $$\Delta \text{Break}_i \equiv \underbrace{\Delta Q_i P_0 X_0}_{E_Q} + \underbrace{Q_0 \Delta P_i X_0}_{E_P} + \underbrace{Q_0 P_0 \Delta X_i}_{E_{FX}} + E_{\text{cross}, i}, \qquad \text{Gross\_Break}_p = \sum_{i \in \mathcal{I}_p} |\Delta \text{Break}_i|$$
+  $$\Delta \text{Break}_i \equiv \underbrace{\Delta Q_i P_0 X_0}_{E_Q} + \underbrace{Q_0 \Delta P_i X_0}_{E_P} + \underbrace{Q_0 P_0 \Delta X_i}_{E_{FX}} + E_{\text{cross}, i}, \qquad \text{Gross Break}_p = \sum_{i \in \mathcal{I}_p} |\Delta \text{Break}_i|$$
 * **Garantía Arquitectónica:** Mediante un `Parallel Partitioned Radix Hash Join` en Rust y expresiones vectorizadas `pl.when().then().otherwise()`, el motor clasifica cada activo en `[OK] RECONCILED`, `[WARN] MINOR_TOLERANCE`, `[NAV-BREAK]` o `[CRITICAL] ORPHAN / SCHEMA_REJECTED` sin bucles en Python.
 
 #### Síntesis del Módulo 7: Arquitectura de Persistencia Dual (`DuckDB` & `Snowflake`) y *Zero-Lock Analytics*
